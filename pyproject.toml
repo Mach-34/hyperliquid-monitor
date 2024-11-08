@@ -2,7 +2,23 @@
 name = "hyperliquid-monitor"
 version = "0.1.0"
 description = "A Hyperliquid trade monitor package"
-authors = ["Your Name <your.email@example.com>"]
+authors = ["Yakitori"]
+readme = "README.md"
+license = "MIT"
+homepage = "https://github.com/oni-giri/hyperliquid-monitor"
+repository = "https://github.com/oni-giri/hyperliquid-monitor"
+keywords = ["hyperliquid", "trading", "cryptocurrency", "monitor", "dex"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Office/Business :: Financial :: Investment",
+]
 packages = [{include = "hyperliquid_monitor", from = "src"}]
 
 [tool.poetry.dependencies]

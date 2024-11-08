@@ -139,6 +139,48 @@ If you provide a `db_path`, trades will be stored in an SQLite database with two
 - price: Order price
 - order_id: Unique order ID
 
+## Database Recording Modes
+
+The monitor supports different modes of operation for recording trades:
+
+### 1. Full Monitoring with Notifications
+```python
+# Records to database and sends notifications via callback
+monitor = HyperliquidMonitor(
+    addresses=addresses,
+    db_path="trades.db",
+    callback=print_trade
+)
+```
+
+### 2. Silent Database Recording
+```python
+# Only records to database, no notifications
+monitor = HyperliquidMonitor(
+    addresses=addresses,
+    db_path="trades.db",
+    silent=True  # Suppresses all notifications and console output
+)
+```
+
+### 3. Notification-Only Mode
+```python
+# Only sends notifications, no database recording
+monitor = HyperliquidMonitor(
+    addresses=addresses,
+    callback=print_trade
+)
+```
+
+The silent mode is particularly useful for:
+- Background monitoring and data collection
+- Reducing system resource usage
+- Running multiple monitors concurrently
+- Long-term trade data accumulation
+- Server-side deployments where notifications aren't needed
+
+Note: Silent mode requires a database path to be specified since it's meant for data recording.
+
 ## Development
 
 ### Setting up the Development Environment

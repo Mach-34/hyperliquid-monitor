@@ -2,29 +2,39 @@ import sqlite3
 import threading
 import os
 from datetime import datetime
+from pathlib import Path
 from typing import Dict, Optional
 
-class TradeDatabase:
-    def __init__(self, db_path: str):
-        self.db_path = db_path
-        self._local = threading.local()
-        self.initialize()
-
-    @property
-    def conn(self) -> sqlite3.Connection:
-        if not hasattr(self._local, 'conn'):
-            self._local.conn = sqlite3.connect(self.db_path)
-        return self._local.conn
-
-    def initialize(self) -> None:
-        """Initialize the database connection and create tables if they don't exist."""
-        self.create_tables()
-
-    def create_tables(self) -> None:
-        """Create the necessary tables if they don't exist."""
-        cursor = self.conn.cursor()
+def init_database(db_path: Optional[str] = None) -> str:
+    """
+    Initialize a new database for the Hyperliquid monitor or validate an existing one.
+    
+    Args:
+        db_path: Optional path to the database. If None, creates a default 'trades.db'
+                in the current directory.
+    
+    Returns:
+        str: The absolute path to the initialized database
         
-        # Create fills table if it doesn't exist
+    Raises:
+        sqlite3.Error: If there's an error creating or accessing the database
+        ValueError: If the provided path is invalid
+    """
+    if db_path is None:
+        db_path = "trades.db"
+    
+    # Convert to Path object for easier manipulation
+    db_path = Path(db_path).resolve()
+    
+    # Create parent directories if they don't exist
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    try:
+        # Create and test the database connection
+        conn = sqlite3.connect(str(db_path))
+        cursor = conn.cursor()
+        
+        # Create the required tables
         cursor.execute('''
         CREATE TABLE IF NOT EXISTS fills (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -44,7 +54,6 @@ class TradeDatabase:
         )
         ''')
 
-        # Create orders table if it doesn't exist
         cursor.execute('''
         CREATE TABLE IF NOT EXISTS orders (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -59,8 +68,42 @@ class TradeDatabase:
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
         ''')
+        
+        # Create indexes for better query performance
+        cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_fills_address ON fills(address)
+        ''')
+        cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_fills_timestamp ON fills(timestamp)
+        ''')
+        cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_orders_address ON orders(address)
+        ''')
+        cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_orders_timestamp ON orders(timestamp)
+        ''')
+        
+        conn.commit()
+        conn.close()
+        
+        return str(db_path)
+        
+    except sqlite3.Error as e:
+        raise sqlite3.Error(f"Failed to initialize database at {db_path}: {str(e)}")
+    except Exception as e:
+        raise ValueError(f"Error creating database at {db_path}: {str(e)}")
 
-        self.conn.commit()
+class TradeDatabase:
+    def __init__(self, db_path: str):
+        """Initialize the database connection and create tables if they don't exist."""
+        self.db_path = init_database(db_path)  # Use the init_database function
+        self._local = threading.local()
+        
+    @property
+    def conn(self) -> sqlite3.Connection:
+        if not hasattr(self._local, 'conn'):
+            self._local.conn = sqlite3.connect(self.db_path)
+        return self._local.conn
 
     def store_fill(self, fill: Dict) -> None:
         """Store a fill in the database."""

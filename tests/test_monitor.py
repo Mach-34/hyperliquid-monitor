@@ -12,12 +12,32 @@ def test_monitor_initialization():
     assert monitor.addresses == addresses
     assert monitor.db is None
     assert monitor.callback is None
+    assert monitor.silent is False
 
 def test_monitor_with_db(temp_db_path):
     addresses = ["0x123..."]
     monitor = HyperliquidMonitor(addresses, db_path=temp_db_path)
     assert monitor.db is not None
     assert monitor.db.db_path == temp_db_path
+    assert monitor.silent is False
+
+def test_silent_mode_requires_db():
+    addresses = ["0x123..."]
+    with pytest.raises(ValueError, match="Silent mode requires a database path"):
+        HyperliquidMonitor(addresses, silent=True)
+
+def test_silent_mode_initialization(temp_db_path):
+    addresses = ["0x123..."]
+    callback = Mock()
+    monitor = HyperliquidMonitor(
+        addresses, 
+        db_path=temp_db_path, 
+        callback=callback,
+        silent=True
+    )
+    assert monitor.db is not None
+    assert monitor.callback is None  # Callback should be None in silent mode
+    assert monitor.silent is True
 
 @freeze_time("2023-11-08 15:30:00")
 def test_process_fill(sample_fill_data):
@@ -68,6 +88,23 @@ def test_callback_execution(sample_fill_data):
     assert isinstance(call_args, Trade)
     assert call_args.coin == "ETH"
     assert abs(call_args.size - 0.5) < 0.001
+
+def test_silent_mode_callback_suppression(sample_fill_data, temp_db_path):
+    mock_callback = Mock()
+    monitor = HyperliquidMonitor(
+        ["0x123..."], 
+        db_path=temp_db_path,
+        callback=mock_callback,
+        silent=True
+    )
+    
+    handler = monitor.create_event_handler("0x123...")
+    event = {"data": {"fills": [sample_fill_data]}}
+    
+    handler(event)
+    
+    # Callback should not be called in silent mode
+    assert mock_callback.call_count == 0
 
 def test_stop_monitor():
     monitor = HyperliquidMonitor(["0x123..."])

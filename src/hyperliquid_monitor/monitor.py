@@ -2,7 +2,7 @@ import signal
 import sys
 import threading
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Union
 
 from hyperliquid.info import Info
 from hyperliquid.utils import constants
@@ -14,7 +14,8 @@ class HyperliquidMonitor:
     def __init__(self, 
                  addresses: List[str], 
                  db_path: Optional[str] = None,
-                 callback: Optional[TradeCallback] = None):
+                 callback: Optional[TradeCallback] = None,
+                 silent: bool = False):
         """
         Initialize the Hyperliquid monitor.
         
@@ -22,13 +23,19 @@ class HyperliquidMonitor:
             addresses: List of addresses to monitor
             db_path: Optional path to SQLite database. If None, trades won't be stored
             callback: Optional callback function that will be called for each trade
+            silent: If True, callback notifications will be suppressed even if callback is provided.
+                   Useful for silent database recording. Default is False.
         """
         self.info = Info(constants.MAINNET_API_URL)
         self.addresses = addresses
-        self.callback = callback
+        self.callback = callback if not silent else None
+        self.silent = silent
         self.db = TradeDatabase(db_path) if db_path else None
         self._stop_event = threading.Event()
         self._db_lock = threading.Lock() if db_path else None
+        
+        if silent and not db_path:
+            raise ValueError("Silent mode requires a database path to be specified")
         
     def handle_shutdown(self, signum=None, frame=None):
         """Handle shutdown signals"""
@@ -47,7 +54,8 @@ class HyperliquidMonitor:
         if self.db:
             with self._db_lock:
                 self.db.close()
-            print("Database connection closed.")
+            if not self.silent:
+                print("Database connection closed.")
 
     def create_event_handler(self, address: str):
         """Creates an event handler for a specific address"""
@@ -70,10 +78,11 @@ class HyperliquidMonitor:
                         if self.db:
                             with self._db_lock:
                                 self.db.store_fill(fill)
-                        if self.callback:
+                        if self.callback and not self.silent:
                             self.callback(trade)
                     except Exception as e:
-                        print(f"Error processing fill: {e}")
+                        if not self.silent:
+                            print(f"Error processing fill: {e}")
                         
             # Handle order updates        
             if "orderUpdates" in data:
@@ -88,11 +97,12 @@ class HyperliquidMonitor:
                                     self.db.store_order(update, "placed")
                                 elif "canceled" in update:
                                     self.db.store_order(update, "canceled")
-                        if self.callback:
+                        if self.callback and not self.silent:
                             for trade in trades:
                                 self.callback(trade)
                     except Exception as e:
-                        print(f"Error processing order update: {e}")
+                        if not self.silent:
+                            print(f"Error processing order update: {e}")
         
         return handle_event
 

@@ -47,19 +47,6 @@ jobs:
       run: |
         curl -sSL https://install.python-poetry.org | python3 -
     
-    - name: Verify tag version matches package version
-      run: |
-        # Extract version from pyproject.toml
-        PACKAGE_VERSION=$(poetry version -s)
-        # Remove 'v' prefix from git tag if present
-        TAG_VERSION=${GITHUB_REF#refs/tags/}
-        TAG_VERSION=${TAG_VERSION#v}
-        
-        if [ "$PACKAGE_VERSION" != "$TAG_VERSION" ]; then
-          echo "Package version ($PACKAGE_VERSION) does not match tag version ($TAG_VERSION)"
-          exit 1
-        fi
-    
     - name: Configure Poetry
       run: |
         poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}

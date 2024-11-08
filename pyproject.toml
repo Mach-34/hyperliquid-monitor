@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "hyperliquid-monitor"
+version = "0.1.0"
+description = "A Hyperliquid trade monitor package"
+authors = ["Your Name <your.email@example.com>"]
+packages = [{include = "hyperliquid_monitor", from = "src"}]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+hyperliquid = "^1.0.0"
+python-dotenv = "^1.0.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

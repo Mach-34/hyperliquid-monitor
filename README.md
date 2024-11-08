@@ -1,3 +1,5 @@
+![image](./assets/head-image.png)
+
 # Hyperliquid Monitor
 
 A Python package for monitoring trades and orders on Hyperliquid DEX in real-time. This package allows you to track specific addresses and receive notifications when trades are executed or orders are placed/cancelled.

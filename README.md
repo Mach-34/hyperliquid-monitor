@@ -27,57 +27,86 @@ pip install hyperliquid-monitor
 
 ## Quick Start
 
-Here's a simple example that monitors an address and prints trades to the console:
+### Simple Console Notification
+
+Here's a basic example that monitors an address and prints trades to the console:
 
 ```python
 from hyperliquid_monitor import HyperliquidMonitor
 from hyperliquid_monitor.types import Trade
+from datetime import datetime
 
-def handle_trade(trade: Trade):
-    print(f"\nNew {trade.trade_type}:")
-    print(f"Time: {trade.timestamp}")
+def print_trade(trade: Trade):
+    """Print trade information to console with colors"""
+    timestamp = trade.timestamp.strftime('%Y-%m-%d %H:%M:%S')
+    
+    # Color codes
+    GREEN = '\033[92m'
+    RED = '\033[91m'
+    BLUE = '\033[94m'
+    RESET = '\033[0m'
+    
+    # Choose color based on trade type and side
+    color = GREEN if trade.side == "BUY" else RED
+    
+    print(f"\n{BLUE}[{timestamp}]{RESET} New {trade.trade_type}:")
     print(f"Address: {trade.address}")
     print(f"Coin: {trade.coin}")
-    print(f"Side: {trade.side}")
+    print(f"{color}Side: {trade.side}{RESET}")
     print(f"Size: {trade.size}")
     print(f"Price: {trade.price}")
+    
+    if trade.trade_type == "FILL":
+        print(f"Direction: {trade.direction}")
+        if trade.closed_pnl:
+            pnl_color = GREEN if trade.closed_pnl > 0 else RED
+            print(f"PnL: {pnl_color}{trade.closed_pnl:.2f}{RESET}")
+        print(f"Hash: {trade.tx_hash}")
 
-# List of addresses to monitor
-addresses = [
-    "0x010461C14e146ac35Fe42271BDC1134EE31C703a"
-]
+def main():
+    # List of addresses to monitor
+    addresses = [
+        "0x010461C14e146ac35Fe42271BDC1134EE31C703a"  # Example address
+    ]
 
-# Create and start the monitor
-monitor = HyperliquidMonitor(
-    addresses=addresses,
-    db_path="trades.db",  # Optional: remove to disable database
-    callback=handle_trade
-)
+    # Create monitor with console notifications and optional database
+    monitor = HyperliquidMonitor(
+        addresses=addresses,
+        db_path="trades.db",  # Optional: remove to disable database
+        callback=print_trade
+    )
 
-monitor.start()
+    try:
+        print("Starting monitor... Press Ctrl+C to exit")
+        monitor.start()
+    except KeyboardInterrupt:
+        monitor.stop()
+
+if __name__ == "__main__":
+    main()
 ```
 
-## Trade Object Structure
+### Trade Object Structure
 
 The `Trade` object contains the following information:
 
 ```python
 @dataclass
 class Trade:
-    timestamp: datetime
-    address: str
-    coin: str
-    side: Literal["BUY", "SELL"]
-    size: float
-    price: float
+    timestamp: datetime      # When the trade occurred
+    address: str            # The address that made the trade
+    coin: str              # The traded coin/token
+    side: Literal["BUY", "SELL"]  # Trade side
+    size: float            # Trade size
+    price: float           # Trade price
     trade_type: Literal["FILL", "ORDER_PLACED", "ORDER_CANCELLED"]
-    direction: Optional[str] = None
-    tx_hash: Optional[str] = None
-    fee: Optional[float] = None
-    fee_token: Optional[str] = None
-    start_position: Optional[float] = None
-    closed_pnl: Optional[float] = None
-    order_id: Optional[int] = None
+    direction: Optional[str] = None  # e.g., "Open Long", "Close Short"
+    tx_hash: Optional[str] = None    # Transaction hash for fills
+    fee: Optional[float] = None      # Trading fee
+    fee_token: Optional[str] = None  # Fee token (e.g., "USDC")
+    start_position: Optional[float] = None  # Position size before trade
+    closed_pnl: Optional[float] = None     # Realized PnL for closing trades
+    order_id: Optional[int] = None         # Order ID for orders
 ```
 
 ## Database Storage
@@ -85,90 +114,93 @@ class Trade:
 If you provide a `db_path`, trades will be stored in an SQLite database with two tables:
 
 ### Fills Table
-- timestamp
-- address
-- coin
-- side
-- size
-- price
-- direction
-- tx_hash
-- fee
-- fee_token
-- start_position
-- closed_pnl
+- timestamp: When the trade occurred
+- address: Trader's address
+- coin: Traded asset
+- side: BUY/SELL
+- size: Trade size
+- price: Trade price
+- direction: Trade direction
+- tx_hash: Transaction hash
+- fee: Trading fee
+- fee_token: Fee token
+- start_position: Position before trade
+- closed_pnl: Realized PnL
 
 ### Orders Table
-- timestamp
-- address
-- coin
-- action
-- side
-- size
-- price
-- order_id
+- timestamp: When the order was placed/cancelled
+- address: Trader's address
+- coin: Asset
+- action: placed/cancelled
+- side: BUY/SELL
+- size: Order size
+- price: Order price
+- order_id: Unique order ID
 
-## Example: Telegram Bot Integration
+## Development
 
-Here's how you can integrate this monitor with a Telegram bot:
+### Setting up the Development Environment
 
-```python
-from telegram.ext import Updater
-from hyperliquid_monitor import HyperliquidMonitor
-from hyperliquid_monitor.types import Trade
-
-def send_telegram_message(trade: Trade, bot, chat_id):
-    message = f"""
-🔔 New {trade.trade_type}
-
-Asset: {trade.coin}
-Type: {trade.side}
-Size: {trade.size}
-Price: {trade.price}
-Time: {trade.timestamp}
-"""
-    if trade.trade_type == "FILL":
-        message += f"""
-Direction: {trade.direction}
-PnL: {trade.closed_pnl}
-Hash: {trade.tx_hash}
-"""
-    
-    bot.send_message(chat_id=chat_id, text=message)
-
-def main():
-    # Initialize your Telegram bot
-    updater = Updater("YOUR_BOT_TOKEN")
-    bot = updater.bot
-    chat_id = "YOUR_CHAT_ID"
-
-    # Create callback function
-    def handle_trade(trade: Trade):
-        send_telegram_message(trade, bot, chat_id)
-
-    # Initialize and start the monitor
-    monitor = HyperliquidMonitor(
-        addresses=["0x..."],
-        db_path="trades.db",
-        callback=handle_trade
-    )
-    
-    monitor.start()
-
-if __name__ == "__main__":
-    main()
+1. Clone the repository:
+```bash
+git clone https://github.com/your-username/hyperliquid-monitor.git
+cd hyperliquid-monitor
 ```
 
-## Error Handling
+2. Install poetry if you haven't already:
+```bash
+curl -sSL https://install.python-poetry.org | python3 -
+```
 
-The monitor includes built-in error handling and will:
-- Catch and log exceptions during trade processing
-- Properly close database connections on shutdown
-- Continue monitoring even if individual trades fail to process
+3. Install dependencies:
+```bash
+poetry install
+```
+
+### Running Tests
+
+The package includes a comprehensive test suite using pytest. To run the tests:
+
+```bash
+# Run all tests
+poetry run pytest
+
+# Run with coverage report
+poetry run pytest --cov
+
+# Run specific test file
+poetry run pytest tests/test_monitor.py
+
+# Run tests with output
+poetry run pytest -v
+```
+
+### Test Structure
+
+Tests are organized in the following structure:
+```
+tests/
+├── __init__.py
+├── conftest.py          # Shared fixtures
+├── test_monitor.py      # Monitor tests
+├── test_database.py     # Database tests
+└── test_types.py        # Type validation tests
+```
+
+Key test areas:
+- Monitor functionality (subscriptions, event handling)
+- Database operations (storage, retrieval)
+- Type validation (trade object validation)
+- Event processing (fills, orders)
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Please feel free to submit a Pull Request. Make sure to:
+
+1. Add tests for any new functionality
+2. Update documentation as needed
+3. Follow the existing code style
+4. Run the test suite before submitting
 
 ## License
 
@@ -176,5 +208,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Acknowledgments
 
-- Built on top of the official Hyperliquid Python SDK
-- Inspired by the need for real-time trade monitoring in DeFi
+Built on top of the official Hyperliquid Python SDK

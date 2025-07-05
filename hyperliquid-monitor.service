@@ -1,0 +1,18 @@
+[Unit]
+Description=Hyperliquid Trade Monitor
+After=network.target
+
+[Service]
+Type=simple
+User=your-username
+WorkingDirectory=/path/to/hyperliquid-monitor
+ExecStart=/usr/bin/python3 /path/to/hyperliquid-monitor/silent_monitor.py
+Restart=always
+RestartSec=10
+
+# Environment variables
+Environment=MONITORED_ADDRESSES="0x010461C14e146ac35Fe42271BDC1134EE31C703a"
+Environment=DB_PATH="/path/to/trades.db"
+
+[Install]
+WantedBy=multi-user.target

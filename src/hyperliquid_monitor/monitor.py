@@ -109,7 +109,6 @@ class HyperliquidMonitor:
     def _process_fill(self, fill: Dict, address: str) -> Trade:
         """Process fill information and return Trade object"""
         timestamp = datetime.fromtimestamp(int(fill.get("time", 0)) / 1000)
-        
         return Trade(
             timestamp=timestamp,
             address=address,

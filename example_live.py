@@ -28,7 +28,7 @@ def print_trade(trade: Trade):
     print(f"Size: {trade.size}")
     print(f"Price: {trade.price}")
 
-    print(f"Trade: {trade}")
+    # print(f"Trade: {trade}")
     
     if trade.trade_type == "FILL":
         print(f"Direction: {trade.direction}")

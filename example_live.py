@@ -32,9 +32,23 @@ def print_trade(trade: Trade):
     
     if trade.trade_type == "FILL":
         print(f"Direction: {trade.direction}")
+        
+        # Show position duration for closing trades
+        if trade.position_duration and any(keyword in trade.direction for keyword in ["Close", ">"]):
+            print(f"{YELLOW}⏱️  Position Duration: {trade.position_duration}{RESET}")
+        
+        # Show PnL
         if trade.closed_pnl and trade.closed_pnl != 0:
             pnl_color = GREEN if trade.closed_pnl > 0 else RED
             print(f"PnL: {pnl_color}{trade.closed_pnl:.2f}{RESET}")
+        
+        # Show additional position info if available
+        if hasattr(trade, 'position_info') and trade.position_info:
+            pos_info = trade.position_info
+            entry_price = pos_info.get('entry_price')
+            if entry_price:
+                print(f"{BLUE}📈 Entry: {entry_price:.4f} → Exit: {trade.price:.4f}{RESET}")
+        
         if trade.fee:
             print(f"Fee: {trade.fee} {trade.fee_token}")
         print(f"Hash: {trade.tx_hash}")

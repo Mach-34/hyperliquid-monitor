@@ -9,6 +9,7 @@ from hyperliquid.utils import constants
 
 from hyperliquid_monitor.database import TradeDatabase
 from hyperliquid_monitor.types import Trade, TradeCallback
+from hyperliquid_monitor.position_tracker import PositionTracker
 
 class HyperliquidMonitor:
     def __init__(self, 
@@ -31,6 +32,7 @@ class HyperliquidMonitor:
         self.callback = callback if not silent else None
         self.silent = silent
         self.db = TradeDatabase(db_path) if db_path else None
+        self.position_tracker = PositionTracker(db_path) if db_path else None
         self._stop_event = threading.Event()
         self._db_lock = threading.Lock() if db_path else None
         
@@ -75,9 +77,47 @@ class HyperliquidMonitor:
                         continue
                     try:
                         trade = self._process_fill(fill, address)
+                        fill_id = None
+                        position_info = None
+                        
                         if self.db:
                             with self._db_lock:
-                                self.db.store_fill(fill)
+                                # Store the fill first to get the ID
+                                cursor = self.db.conn.cursor()
+                                cursor.execute('''
+                                INSERT INTO fills (
+                                    timestamp, address, coin, side, size, price, direction, tx_hash, 
+                                    fee, fee_token, start_position, closed_pnl
+                                )
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                ''', (
+                                    trade.timestamp,
+                                    fill.get("address", address),
+                                    fill.get("coin", "Unknown"),
+                                    "BUY" if fill.get("side", "B") == "A" else "SELL",
+                                    float(fill.get("sz", 0)),
+                                    float(fill.get("px", 0)),
+                                    fill.get("dir", "Unknown"),
+                                    fill.get("hash", "Unknown"),
+                                    float(fill.get("fee", 0)),
+                                    fill.get("feeToken", "Unknown"),
+                                    float(fill.get("startPosition", 0)),
+                                    float(fill.get("closedPnl", 0))
+                                ))
+                                fill_id = cursor.lastrowid
+                                self.db.conn.commit()
+                                
+                                # Track position if we have a position tracker
+                                if self.position_tracker:
+                                    position_info = self.position_tracker.process_fill(
+                                        {**fill, "address": address}, fill_id
+                                    )
+                        
+                        # Add position info to trade if available
+                        if position_info:
+                            trade.position_duration = position_info.get('duration_formatted')
+                            trade.position_info = position_info
+                        
                         if self.callback and not self.silent:
                             self.callback(trade)
                     except Exception as e:

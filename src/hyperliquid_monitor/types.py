@@ -21,6 +21,8 @@ class Trade:
     start_position: Optional[float] = None
     closed_pnl: Optional[float] = None
     order_id: Optional[int] = None
+    position_duration: Optional[str] = None
+    position_info: Optional[dict] = None
 
     def __post_init__(self):
         """Validate trade data after initialization"""
